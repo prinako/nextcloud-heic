@@ -4,10 +4,10 @@ on:
   push:
     branches: [ "main", "prince" ]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*', 'latest' ]
+    tags: [ 'v*.*.*', 'latest', '*-fpm' ]
   pull_request:
     branches: [ "main" ]
-
+  
 env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
