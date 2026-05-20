@@ -1,0 +1,5 @@
+.env.example
+.gitignore
+dcoker-compose.yml
+README.md
+.github
