@@ -1,69 +1,151 @@
 # nextcloud-heic
 
-A Docker-based Nextcloud setup with HEIC/HEIF image preview support powered by [libheif](https://github.com/strukturag/libheif) and ImageMagick.
+A small Docker Compose stack for running Nextcloud with HEIC/HEIF preview support.
 
-## Features
+The published app image includes ImageMagick, FFmpeg, and `libheif` so photos
+from iPhones and other HEIC-capable devices can generate previews inside
+Nextcloud.
 
-- Nextcloud 29 (Apache)
-- MariaDB 11 database
-- Redis for caching and session storage
-- Background job runner (cron)
-- HEIC/HEIF thumbnail and preview generation via `imagick` + `libheif`
+## What's Included
+
+- Nextcloud app container with HEIC/HEIF tooling
+- MariaDB 11 for the database
+- Redis for caching and file locking support
+- A dedicated Nextcloud cron container for background jobs
+- Persistent Docker volumes for database and Nextcloud data
+
+## Requirements
+
+- Docker
+- Docker Compose v2
 
 ## Quick Start
 
-1. **Copy the example environment file and set your secrets:**
+Create a `.env` file in the repository root:
 
-   ```bash
-   cp .env.example .env
-   # Edit .env and replace all placeholder values
-   ```
+```env
+MYSQL_ROOT_PASSWORD=change-this-root-password
+MYSQL_DATABASE=nextcloud
+MYSQL_USER=nextcloud
+MYSQL_PASSWORD=change-this-db-password
 
-2. **Build and start the stack:**
+NEXTCLOUD_ADMIN_USER=admin
+NEXTCLOUD_ADMIN_PASSWORD=change-this-admin-password
+NEXTCLOUD_TRUSTED_DOMAINS=localhost
+NEXTCLOUD_PORT=8080
+```
 
-   ```bash
-   docker compose up -d --build
-   ```
+Start the stack:
 
-3. **Open Nextcloud** in your browser at `http://localhost:8080` (or the port you configured in `.env`).
+```bash
+docker compose up -d
+```
 
-## Enable HEIC Previews
+Open Nextcloud at:
 
-After the first login, run the following commands to enable HEIC/HEIF preview generation:
+```text
+http://localhost:8080
+```
+
+If you changed `NEXTCLOUD_PORT`, use that port instead.
+
+## Enable HEIC/HEIF Previews
+
+After the first install completes, enable the HEIC preview provider:
 
 ```bash
 docker compose exec app php occ config:app:set preview jpeg_quality --value=60
-docker compose exec app php occ config:app:set preview max_x --value=2048
-docker compose exec app php occ config:app:set preview max_y --value=2048
-docker compose exec app php occ config:app:set preview enabledProviders \
-  --value='["OC\\Preview\\PNG","OC\\Preview\\JPEG","OC\\Preview\\GIF","OC\\Preview\\BMP","OC\\Preview\\XBitmap","OC\\Preview\\HEIC"]'
+docker compose exec app php occ config:system:set preview_max_x --type=integer --value=2048
+docker compose exec app php occ config:system:set preview_max_y --type=integer --value=2048
+docker compose exec app php occ config:system:set enabledPreviewProviders --type=json \
+  --value='["OC\\Preview\\BMP","OC\\Preview\\GIF","OC\\Preview\\JPEG","OC\\Preview\\Krita","OC\\Preview\\MarkDown","OC\\Preview\\MP3","OC\\Preview\\OpenDocument","OC\\Preview\\PNG","OC\\Preview\\TXT","OC\\Preview\\XBitmap","OC\\Preview\\HEIC"]'
 ```
 
-Alternatively, add the following to your `config/config.php` inside the Nextcloud volume:
+Then upload a `.heic` or `.heif` image and open the folder in Nextcloud. The
+preview may take a moment to appear while the background job runner catches up.
 
-```php
-'enabledPreviewProviders' => [
-    'OC\Preview\PNG',
-    'OC\Preview\JPEG',
-    'OC\Preview\GIF',
-    'OC\Preview\BMP',
-    'OC\Preview\XBitmap',
-    'OC\Preview\HEIC',
-],
+## Configuration
+
+The Compose file reads these environment variables:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `MYSQL_ROOT_PASSWORD` | required | Root password for MariaDB. |
+| `MYSQL_DATABASE` | `nextcloud` | Database name used by Nextcloud. |
+| `MYSQL_USER` | `nextcloud` | Database user used by Nextcloud. |
+| `MYSQL_PASSWORD` | required | Password for `MYSQL_USER`. |
+| `NEXTCLOUD_ADMIN_USER` | `admin` | Initial Nextcloud admin username. |
+| `NEXTCLOUD_ADMIN_PASSWORD` | required | Initial Nextcloud admin password. |
+| `NEXTCLOUD_TRUSTED_DOMAINS` | `localhost` | Hostnames allowed by Nextcloud. Add your domain or LAN IP here for non-local access. |
+| `NEXTCLOUD_PORT` | `8080` | Host port mapped to the Nextcloud web container. |
+
+## Common Commands
+
+View running containers:
+
+```bash
+docker compose ps
 ```
 
-## Stopping the Stack
+Follow logs:
+
+```bash
+docker compose logs -f
+```
+
+Run an `occ` command:
+
+```bash
+docker compose exec app php occ status
+```
+
+Stop the stack:
 
 ```bash
 docker compose down
 ```
 
-To also remove all data volumes:
+Stop the stack and remove all stored Nextcloud and database data:
 
 ```bash
 docker compose down -v
 ```
 
-## Environment Variables
+## Image
 
-See [`.env.example`](.env.example) for all available options and their defaults.
+The Compose file uses the published image from GitHub Container Registry:
+
+```yaml
+image: ghcr.io/prinako/nextcloud-heic:main
+```
+
+The repository also contains a `Dockerfile` for the custom image build.
+
+## Troubleshooting
+
+If HEIC previews do not appear:
+
+- Confirm the app container can see the HEIC preview provider:
+
+  ```bash
+  docker compose exec app php occ config:system:get enabledPreviewProviders
+  ```
+
+- Check the Nextcloud logs:
+
+  ```bash
+  docker compose logs app
+  ```
+
+- Make sure cron is running:
+
+  ```bash
+  docker compose ps cron
+  ```
+
+- Re-run the preview configuration commands after upgrades if preview settings
+  are reset.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
