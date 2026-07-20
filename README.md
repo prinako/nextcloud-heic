@@ -3,7 +3,7 @@
 Docker image and Compose stack for running Nextcloud with HEIC/HEIF preview
 support.
 
-The custom image extends `nextcloud:34.0.1-fpm` and adds the packages Nextcloud
+The custom image extends `nextcloud:33.0.6-fpm` and adds the packages Nextcloud
 needs to read common HEIC photos, including ImageMagick, FFmpeg, `libheif1`, and
 `libheif-dev`.
 
