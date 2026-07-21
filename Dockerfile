@@ -1,4 +1,4 @@
-FROM nextcloud:33.0.6-fpm
+FROM nextcloud:34.0.1-fpm
 
 RUN apt-get update && apt-get install -y \
     libheif1 \

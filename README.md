@@ -1,58 +1,91 @@
-# nextcloud-heic
+<div align="center">
 
-Docker image and Compose stack for running Nextcloud with HEIC/HEIF preview
-support.
+# Nextcloud HEIC
 
-The custom image extends `nextcloud:33.0.6-fpm` and adds the packages Nextcloud
-needs to read common HEIC photos, including ImageMagick, FFmpeg, `libheif1`, and
-`libheif-dev`.
+**A ready-to-run Nextcloud image with HEIC and HEIF preview support.**
 
-## Included Services
+[![Nextcloud](https://img.shields.io/badge/Nextcloud-33-0082C9?logo=nextcloud&logoColor=white)](https://nextcloud.com/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Container](https://img.shields.io/badge/GHCR-nextcloud--heic-181717?logo=github)](https://github.com/prinako/nextcloud-heic/pkgs/container/nextcloud-heic)
+[![License](https://img.shields.io/github/license/prinako/nextcloud-heic)](LICENSE)
 
-- Nextcloud application container using `ghcr.io/prinako/nextcloud-heic:main`
-- MariaDB 11 database
-- Redis cache for locking and performance
-- Dedicated Nextcloud cron container
-- Persistent Docker volumes for database and Nextcloud data
+[Quick start](#quick-start) · [Configuration](#configuration) · [HEIC previews](#enable-heic-previews) · [Troubleshooting](#troubleshooting)
+
+</div>
+
+---
+
+## Overview
+
+Nextcloud HEIC extends the official `nextcloud:33.0.1-fpm` image with the tools required to read and generate previews for modern Apple image formats.
+
+The image adds:
+
+- **ImageMagick** for image processing and preview generation
+- **libheif** for HEIC and HEIF decoding
+- **FFmpeg** for additional media support
+- A complete Compose stack with **MariaDB**, **Redis**, and a dedicated **cron** worker
+- Persistent volumes for both application and database data
+
+## Architecture
+
+| Service | Image | Purpose |
+| --- | --- | --- |
+| `app` | `ghcr.io/prinako/nextcloud-heic:main` | Nextcloud application with HEIC support |
+| `cron` | `ghcr.io/prinako/nextcloud-heic:main` | Runs Nextcloud background jobs |
+| `db` | `mariadb:11` | Stores Nextcloud application data |
+| `redis` | `redis:7-alpine` | Provides caching and transactional file locking |
 
 ## Requirements
 
-- Docker
-- Docker Compose v2
+- [Docker Engine](https://docs.docker.com/engine/install/)
+- Docker Compose v2 (`docker compose`)
 
-## Quick Start
+## Quick start
 
-Create a `.env` file in the repository root:
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/prinako/nextcloud-heic.git
+cd nextcloud-heic
+```
+
+### 2. Configure the environment
+
+Create a `.env` file in the project root:
 
 ```env
-MYSQL_ROOT_PASSWORD=change-this-root-password
+MYSQL_ROOT_PASSWORD=replace-with-a-strong-root-password
 MYSQL_DATABASE=nextcloud
 MYSQL_USER=nextcloud
-MYSQL_PASSWORD=change-this-db-password
+MYSQL_PASSWORD=replace-with-a-strong-database-password
 
 NEXTCLOUD_ADMIN_USER=admin
-NEXTCLOUD_ADMIN_PASSWORD=change-this-admin-password
+NEXTCLOUD_ADMIN_PASSWORD=replace-with-a-strong-admin-password
 NEXTCLOUD_TRUSTED_DOMAINS=localhost
 NEXTCLOUD_PORT=8080
 ```
 
-Start the stack:
+> [!IMPORTANT]
+> Use unique, strong passwords before exposing the service to a network. Do not commit your `.env` file.
+
+### 3. Start the stack
 
 ```bash
 docker compose up -d
 ```
 
-Open Nextcloud:
+Check that the services are running:
 
-```text
-http://localhost:8080
+```bash
+docker compose ps
 ```
 
-If you changed `NEXTCLOUD_PORT`, use that port instead.
+Then open [http://localhost:8080](http://localhost:8080). If you changed `NEXTCLOUD_PORT`, use the configured port instead.
 
-## Enable HEIC Previews
+## Enable HEIC previews
 
-After the first install finishes, enable the HEIC preview provider:
+After the initial Nextcloud installation is complete, configure the preview provider:
 
 ```bash
 docker compose exec app php occ config:app:set preview jpeg_quality --value=60
@@ -62,101 +95,124 @@ docker compose exec app php occ config:system:set enabledPreviewProviders --type
   --value='["OC\\Preview\\BMP","OC\\Preview\\GIF","OC\\Preview\\JPEG","OC\\Preview\\Krita","OC\\Preview\\MarkDown","OC\\Preview\\MP3","OC\\Preview\\OpenDocument","OC\\Preview\\PNG","OC\\Preview\\TXT","OC\\Preview\\XBitmap","OC\\Preview\\HEIC"]'
 ```
 
-Upload a `.heic` or `.heif` file and open its folder in Nextcloud. Preview
-generation can take a moment while cron processes background jobs.
+Upload a `.heic` or `.heif` image and browse to its folder. The first preview may take a moment while background jobs run.
 
 ## Configuration
 
-The Compose file reads these environment variables:
+The Compose stack accepts the following environment variables:
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `MYSQL_ROOT_PASSWORD` | required | Root password for MariaDB. |
-| `MYSQL_DATABASE` | `nextcloud` | Database name used by Nextcloud. |
-| `MYSQL_USER` | `nextcloud` | Database user used by Nextcloud. |
-| `MYSQL_PASSWORD` | required | Password for `MYSQL_USER`. |
-| `NEXTCLOUD_ADMIN_USER` | `admin` | Initial Nextcloud admin username. |
-| `NEXTCLOUD_ADMIN_PASSWORD` | required | Initial Nextcloud admin password. |
-| `NEXTCLOUD_TRUSTED_DOMAINS` | `localhost` | Hostnames allowed by Nextcloud. Add your domain or LAN IP for non-local access. |
-| `NEXTCLOUD_PORT` | `8080` | Host port mapped to the Nextcloud app container. |
+| Variable | Default | Required | Description |
+| --- | --- | :---: | --- |
+| `MYSQL_ROOT_PASSWORD` | — | Yes | MariaDB root password |
+| `MYSQL_DATABASE` | `nextcloud` | No | Nextcloud database name |
+| `MYSQL_USER` | `nextcloud` | No | Nextcloud database user |
+| `MYSQL_PASSWORD` | — | Yes | Password for `MYSQL_USER` |
+| `NEXTCLOUD_ADMIN_USER` | `admin` | No | Initial administrator username |
+| `NEXTCLOUD_ADMIN_PASSWORD` | — | Yes | Initial administrator password |
+| `NEXTCLOUD_TRUSTED_DOMAINS` | `localhost` | No | Space-separated hostnames or IP addresses trusted by Nextcloud |
+| `NEXTCLOUD_PORT` | `8080` | No | Host port exposed by the application service |
 
-## Build Locally
+For remote access, set `NEXTCLOUD_TRUSTED_DOMAINS` to the domain name or LAN IP used to reach your instance.
 
-The Compose file uses the published image by default:
+## Build locally
 
-```yaml
-image: ghcr.io/prinako/nextcloud-heic:main
-```
-
-To build the image locally:
+Build the custom image from the included Dockerfile:
 
 ```bash
 docker build -t nextcloud-heic:local .
 ```
 
-Then update `docker-compose.yml` to use the local tag for both `app` and `cron`:
+Then replace the image used by both `app` and `cron` in `docker-compose.yml`:
 
 ```yaml
 image: nextcloud-heic:local
 ```
 
-## Common Commands
-
-View containers:
+Recreate the services after changing the image:
 
 ```bash
+docker compose up -d --force-recreate
+```
+
+## Operations
+
+```bash
+# View service status
 docker compose ps
-```
 
-Follow logs:
-
-```bash
+# Follow all logs
 docker compose logs -f
-```
 
-Run an `occ` command:
+# Follow application logs only
+docker compose logs -f app
 
-```bash
+# Run an occ command
 docker compose exec app php occ status
-```
 
-Stop the stack:
+# Pull updates and recreate the stack
+docker compose pull
+docker compose up -d
 
-```bash
+# Stop the stack without deleting data
 docker compose down
 ```
 
-Stop the stack and remove stored data:
-
-```bash
-docker compose down -v
-```
+> [!CAUTION]
+> `docker compose down -v` permanently deletes the named database and Nextcloud volumes. Back up your data before using it.
 
 ## Troubleshooting
 
-If HEIC previews do not appear:
+### HEIC previews do not appear
 
-- Confirm the HEIC provider is configured:
+Confirm that the provider is enabled:
 
-  ```bash
-  docker compose exec app php occ config:system:get enabledPreviewProviders
-  ```
+```bash
+docker compose exec app php occ config:system:get enabledPreviewProviders
+```
 
-- Check the app logs:
+Verify that ImageMagick recognizes HEIC:
 
-  ```bash
-  docker compose logs app
-  ```
+```bash
+docker compose exec app identify -list format | grep HEIC
+```
 
-- Make sure cron is running:
+Check the application and cron services:
 
-  ```bash
-  docker compose ps cron
-  ```
+```bash
+docker compose logs app
+docker compose ps cron
+```
 
-- Re-run the preview configuration commands after upgrades if preview settings
-  were reset.
+### Nextcloud reports an untrusted domain
+
+Add the hostname or IP address to `NEXTCLOUD_TRUSTED_DOMAINS` in `.env`, then recreate the application container:
+
+```bash
+docker compose up -d --force-recreate app
+```
+
+### Inspect the Nextcloud installation
+
+```bash
+docker compose exec app php occ status
+docker compose exec app php occ config:list system
+```
+
+## Updating
+
+Pull the newest published image and recreate the services:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Back up the database and Nextcloud volume before major upgrades. Review the official [Nextcloud upgrade documentation](https://docs.nextcloud.com/server/latest/admin_manual/maintenance/upgrade.html) when changing major versions.
+
+## Contributing
+
+Issues and pull requests are welcome. When reporting a problem, include the relevant Compose logs, Docker version, and a description of the HEIC or HEIF file that triggered it. Do not include passwords, tokens, or other secrets.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Distributed under the [MIT License](LICENSE).
