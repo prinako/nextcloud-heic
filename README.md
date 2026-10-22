@@ -4,7 +4,7 @@
 
 **A ready-to-run Nextcloud image with HEIC and HEIF preview support.**
 
-[![Nextcloud](https://img.shields.io/badge/Nextcloud-33-0082C9?logo=nextcloud&logoColor=white)](https://nextcloud.com/)
+[![Nextcloud](https://img.shields.io/badge/Nextcloud-34-0082C9?logo=nextcloud&logoColor=white)](https://nextcloud.com/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Container](https://img.shields.io/badge/GHCR-nextcloud--heic-181717?logo=github)](https://github.com/prinako/nextcloud-heic/pkgs/container/nextcloud-heic)
 [![License](https://img.shields.io/github/license/prinako/nextcloud-heic)](LICENSE)
@@ -17,7 +17,7 @@
 
 ## Overview
 
-Nextcloud HEIC extends the official `nextcloud:33.0.1-fpm` image with the tools required to read and generate previews for modern Apple image formats.
+Nextcloud HEIC extends the official `nextcloud:34.0.4-fpm` image with the tools required to read and generate previews for modern Apple image formats.
 
 The image adds:
 
