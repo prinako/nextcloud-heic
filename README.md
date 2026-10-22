@@ -17,7 +17,7 @@
 
 ## Overview
 
-Nextcloud HEIC extends the official `nextcloud:34.0.4-fpm` image with the tools required to read and generate previews for modern Apple image formats.
+Nextcloud HEIC extends the official `nextcloud:34.0.5-fpm` image with the tools required to read and generate previews for modern Apple image formats.
 
 The image adds:
 
