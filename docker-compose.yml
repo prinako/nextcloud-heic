@@ -34,6 +34,64 @@ services:
     depends_on:
       - db
       - redis
+  
+  web:
+    image: nginx:alpine
+    container_name: nextcloud_web
+    hostname: nextcloud_web
+    restart: unless-stopped
+    depends_on:
+      - app
+    networks:
+      nextcloud-net:
+        # aliases:
+        #   - drive.prinako.online
+        # ipv4_address: 172.20.0.20
+      traefik-net:
+      # macVlan:
+      #   ipv4_address: 192.168.1.205
+      
+    volumes:
+      - /Kojo/Nextcloud_Conf/html:/var/www/html:ro
+      - /Kojo/Nextcloud_Data:/var/www/html/data:ro
+      - /Kojo/Nextcloud_Custom_Apps:/var/www/html/custom_apps:ro
+      - /Kojo/Nextcloud_Conf/themes:/var/www/html/themes:ro
+      - /Kojo/Nextcloud_Conf/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /Kojo/Nextcloud_Conf/nginx/conf.d/mine.types:/etc/nginx/mime.types:ro
+      # - /Kojo/Docker/NginxProxyManager/letsencrypt/live/npm-13/fullchain.pem:/etc/nginx/certs/fullchain.pem:ro
+      # - /Kojo/Docker/NginxProxyManager/letsencrypt/live/npm-13/privkey.pem:/etc/nginx/certs/privkey.pem:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-net"
+    
+      # Router
+      - "traefik.http.routers.nextcloud.rule=Host(`drive.prinako.online`)"
+      - "traefik.http.routers.nextcloud.entrypoints=websecure"
+      - "traefik.http.routers.nextcloud.tls=true"
+      - "traefik.http.routers.nextcloud.tls.certresolver=cloudflare"
+    
+      # Service: Traefik -> Nextcloud backend over HTTP
+      - "traefik.http.services.nextcloud.loadbalancer.server.scheme=http"
+      - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
+    
+      # Middlewares
+      - "traefik.http.routers.nextcloud.middlewares=nextcloud-security,nextcloud-dav"
+    
+      # Security headers
+      - "traefik.http.middlewares.nextcloud-security.headers.stsSeconds=15552000"
+      - "traefik.http.middlewares.nextcloud-security.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.nextcloud-security.headers.stsPreload=true"
+      - "traefik.http.middlewares.nextcloud-security.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.nextcloud-security.headers.customRequestHeaders.X-Forwarded-Proto=https"
+    
+      # CalDAV/CardDAV redirect
+      - "traefik.http.middlewares.nextcloud-dav.redirectregex.regex=^https://([^/]+)/.well-known/(card|cal)dav"
+      - "traefik.http.middlewares.nextcloud-dav.redirectregex.replacement=https://$${1}/remote.php/dav/"
+      - "traefik.http.middlewares.nextcloud-dav.redirectregex.permanent=true"
+
 
   cron:
     image: ghcr.io/prinako/nextcloud-heic:main
