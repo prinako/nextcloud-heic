@@ -17,7 +17,7 @@
 
 ## Overview
 
-Nextcloud HEIC extends the official `nextcloud:34.0.5-fpm` image with the tools required to read and generate previews for modern Apple image formats.
+Nextcloud HEIC extends the official `nextcloud:34.0.6-fpm` image with the tools required to read and generate previews for modern Apple image formats.
 
 The image adds:
 
@@ -199,6 +199,8 @@ docker compose exec app php occ config:list system
 ```
 
 ## Updating
+
+To test a build from the `dev` branch, set the image for both `app` and `cron` to `ghcr.io/prinako/nextcloud-heic:dev` in your test stack.
 
 Pull the newest published image and recreate the services:
 
