@@ -1,0 +1,18 @@
+services:
+  web:
+    networks:
+      - default
+      - traefik
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-traefik-net}
+      traefik.http.routers.nextcloud.rule: "Host(`${NEXTCLOUD_DOMAIN:?Set NEXTCLOUD_DOMAIN in .env}`)"
+      traefik.http.routers.nextcloud.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.nextcloud.tls: "true"
+      traefik.http.routers.nextcloud.tls.certresolver: ${TRAEFIK_CERT_RESOLVER:-}
+      traefik.http.services.nextcloud.loadbalancer.server.port: "80"
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik-net}

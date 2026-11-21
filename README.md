@@ -32,6 +32,7 @@ The image adds:
 | Service | Image | Purpose |
 | --- | --- | --- |
 | `app` | `ghcr.io/prinako/nextcloud-heic:main` | Nextcloud application with HEIC support |
+| `web` | `nginx:stable-alpine` | Serves static files and forwards PHP requests to `app` |
 | `cron` | `ghcr.io/prinako/nextcloud-heic:main` | Runs Nextcloud background jobs |
 | `db` | `mariadb:11` | Stores Nextcloud application data |
 | `redis` | `redis:7-alpine` | Provides caching and transactional file locking |
@@ -52,22 +53,13 @@ cd nextcloud-heic
 
 ### 2. Configure the environment
 
-Create a `.env` file in the project root:
+Copy the example and replace every password placeholder with a unique value. Use a URL-safe Redis password, such as the output of `openssl rand -hex 32`.
 
-```env
-MYSQL_ROOT_PASSWORD=replace-with-a-strong-root-password
-MYSQL_DATABASE=nextcloud
-MYSQL_USER=nextcloud
-MYSQL_PASSWORD=replace-with-a-strong-database-password
-
-NEXTCLOUD_ADMIN_USER=admin
-NEXTCLOUD_ADMIN_PASSWORD=replace-with-a-strong-admin-password
-NEXTCLOUD_TRUSTED_DOMAINS=localhost
-NEXTCLOUD_PORT=8080
+```bash
+cp .env.example .env
 ```
 
-> [!IMPORTANT]
-> Use unique, strong passwords before exposing the service to a network. Do not commit your `.env` file.
+Keep the populated `.env` file private.
 
 ### 3. Start the stack
 
@@ -81,7 +73,7 @@ Check that the services are running:
 docker compose ps
 ```
 
-Then open [http://localhost:8080](http://localhost:8080). If you changed `NEXTCLOUD_PORT`, use the configured port instead.
+Then open [http://localhost:8080](http://localhost:8080). Nginx binds to loopback by default. Existing deployments should keep their own Compose project, storage mounts, and database image version.
 
 ## Enable HEIC previews
 
@@ -107,12 +99,24 @@ The Compose stack accepts the following environment variables:
 | `MYSQL_DATABASE` | `nextcloud` | No | Nextcloud database name |
 | `MYSQL_USER` | `nextcloud` | No | Nextcloud database user |
 | `MYSQL_PASSWORD` | — | Yes | Password for `MYSQL_USER` |
+| `REDIS_PASSWORD` | — | Yes | URL-safe Redis password used by Nextcloud and the push worker |
 | `NEXTCLOUD_ADMIN_USER` | `admin` | No | Initial administrator username |
 | `NEXTCLOUD_ADMIN_PASSWORD` | — | Yes | Initial administrator password |
 | `NEXTCLOUD_TRUSTED_DOMAINS` | `localhost` | No | Space-separated hostnames or IP addresses trusted by Nextcloud |
 | `NEXTCLOUD_PORT` | `8080` | No | Host port exposed by the application service |
 
 For remote access, set `NEXTCLOUD_TRUSTED_DOMAINS` to the domain name or LAN IP used to reach your instance.
+
+## Optional integrations
+
+Set the public Nextcloud hostname in `NEXTCLOUD_TRUSTED_DOMAINS` when using a reverse proxy or tunnel. Set `TRUSTED_PROXIES` to the addresses or CIDRs of the proxies you control and `OVERWRITEPROTOCOL=https` if they terminate HTTPS.
+
+- **Traefik** — Set `NEXTCLOUD_DOMAIN` and point `TRAEFIK_NETWORK` to your existing Traefik network. Set `TRAEFIK_CERT_RESOLVER` if your Traefik router uses an ACME resolver. Run `docker compose -f docker-compose.yml -f compose.traefik.yml up -d`. Use the same file arguments for subsequent Compose commands.
+- **Cloudflare Tunnel** — Set `CLOUDFLARE_TUNNEL_TOKEN`. In Cloudflare, configure the Nextcloud route with origin `http://web:80`. Run `docker compose --profile cloudflare up -d`.
+- **Client Push** — Install the `notify_push` app first with `docker compose exec -u www-data app php occ app:install notify_push`. Add the internal hostname `web` to the trusted domains and trust the push daemon for its self-test. Start it with `docker compose --profile push up -d`, then run `docker compose exec -u www-data app php occ notify_push:setup https://cloud.example.com/push` with your actual URL. Set `NOTIFY_PUSH_ARCH` to the directory for your CPU if you are not using x86-64. [Client Push setup](https://github.com/nextcloud/notify_push#reverse-proxy)
+- **ONLYOFFICE** — Set `ONLYOFFICE_JWT_SECRET` and run `docker compose --profile onlyoffice up -d`. Document Server listens on loopback port 8081 by default. Give it a browser-accessible HTTPS URL through your proxy and configure the Nextcloud connector with that URL, the same JWT secret, and the `AuthorizationJwt` header.
+
+Combine profile flags to enable several optional services.
 
 ## Build locally
 
@@ -122,11 +126,7 @@ Build the custom image from the included Dockerfile:
 docker build -t nextcloud-heic:local .
 ```
 
-Then replace the image used by both `app` and `cron` in `docker-compose.yml`:
-
-```yaml
-image: nextcloud-heic:local
-```
+Set `NEXTCLOUD_IMAGE=nextcloud-heic:local` in `.env` to use the image for the application and workers.
 
 Recreate the services after changing the image:
 
@@ -200,7 +200,7 @@ docker compose exec app php occ config:list system
 
 ## Updating
 
-To test a build from the `dev` branch, set the image for both `app` and `cron` to `ghcr.io/prinako/nextcloud-heic:dev` in your test stack.
+To test the `dev` build, set `NEXTCLOUD_IMAGE=ghcr.io/prinako/nextcloud-heic:dev` in your test stack.
 
 Pull the newest published image and recreate the services:
 
